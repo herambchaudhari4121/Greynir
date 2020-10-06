@@ -26,7 +26,7 @@
 from datetime import datetime
 import logging
 
-from flask import request, abort
+from quart import request, abort
 
 from settings import Settings
 
@@ -57,7 +57,7 @@ _MIDEIND_LOCATION = (64.156896, -21.951200)  # Fiskislóð 31, 101 Reykjavík
 
 @routes.route("/ifdtag.api", methods=["GET", "POST"])
 @routes.route("/ifdtag.api/v<int:version>", methods=["GET", "POST"])
-def ifdtag_api(version=1):
+async def ifdtag_api(version=1):
     """ API to parse text and return IFD tagged tokens in a simple and sparse JSON format """
     if not (1 <= version <= 1):
         # Unsupported version
@@ -75,7 +75,7 @@ def ifdtag_api(version=1):
 
 @routes.route("/analyze.api", methods=["GET", "POST"])
 @routes.route("/analyze.api/v<int:version>", methods=["GET", "POST"])
-def analyze_api(version=1):
+async def analyze_api(version=1):
     """ Analyze text manually entered by the user, i.e. not coming from an article.
         This is a lower level API used by the Greynir web front-end. """
     if not (1 <= version <= 1):
@@ -93,14 +93,15 @@ def analyze_api(version=1):
 @routes.route("/correct.api", methods=["GET", "POST"])
 @routes.route("/correct.api/v<int:version>", methods=["GET", "POST"])
 @restricted  # Route is only valid when running on a development server
-def correct_api(version=1):
+async def correct_api(version=1):
     """ Correct text provided by the user, i.e. not coming from an article.
         This can be either an uploaded file or a string.
         This is a lower level API used by the Greynir web front-end. """
     if not (1 <= version <= 1):
         return better_jsonify(valid=False, reason="Unsupported version")
 
-    file = request.files.get("file")
+    f = await request.files
+    file = f.get("file")
     if file is not None:
 
         # file is a Werkzeug FileStorage object
@@ -137,15 +138,16 @@ def correct_api(version=1):
 @routes.route("/correct.task", methods=["POST"])
 @routes.route("/correct.task/v<int:version>", methods=["POST"])
 @restricted  # This means that the route is only visible on a development server
-@async_task  # This means that the function is automatically run on a separate thread
-def correct_task(version=1):
+# @async_task  # This means that the function is automatically run on a separate thread
+async def correct_task(version=1):
     """ Correct text provided by the user, i.e. not coming from an article.
         This can be either an uploaded file or a string.
         This is a lower level API used by the Greynir web front-end. """
     if not (1 <= version <= 1):
         return better_jsonify(valid=False, reason="Unsupported version")
 
-    file = request.files.get("file")
+    f = await request.files
+    file = f.get("file")
     if file is not None:
 
         # Handle uploaded file
@@ -182,7 +184,7 @@ def correct_task(version=1):
 
 @routes.route("/postag.api", methods=["GET", "POST"])
 @routes.route("/postag.api/v<int:version>", methods=["GET", "POST"])
-def postag_api(version=1):
+async def postag_api(version=1):
     """ API to parse text and return POS tagged tokens in a verbose JSON format """
     if not (1 <= version <= 1):
         # Unsupported version
@@ -219,7 +221,7 @@ def postag_api(version=1):
 
 @routes.route("/parse.api", methods=["GET", "POST"])
 @routes.route("/parse.api/v<int:version>", methods=["GET", "POST"])
-def parse_api(version=1):
+async def parse_api(version=1):
     """ API to parse text and return POS tagged tokens in JSON format """
     if not (1 <= version <= 1):
         # Unsupported version
@@ -250,14 +252,16 @@ def parse_api(version=1):
 
 @routes.route("/article.api", methods=["GET", "POST"])
 @routes.route("/article.api/v<int:version>", methods=["GET", "POST"])
-def article_api(version=1):
+async def article_api(version=1):
     """ Obtain information about an article, given its URL or id """
 
     if not (1 <= version <= 1):
         return better_jsonify(valid=False, reason="Unsupported version")
 
-    url = request.values.get("url")
-    uuid = request.values.get("id")
+    vals = await request.values
+
+    url = vals.get("url")
+    uuid = vals.get("id")
 
     if url:
         url = url.strip()[0:_MAX_URL_LENGTH]
@@ -310,12 +314,13 @@ def article_api(version=1):
 
 @routes.route("/reparse.api", methods=["POST"])
 @routes.route("/reparse.api/v<int:version>", methods=["POST"])
-def reparse_api(version=1):
+async def reparse_api(version=1):
     """ Reparse an already parsed and stored article with a given UUID """
     if not (1 <= version <= 1):
         return better_jsonify(valid="False", reason="Unsupported version")
 
-    uuid = request.form.get("id", "").strip()[0:_MAX_UUID_LENGTH]
+    vals = await request.values
+    uuid = vals.get("id", "").strip()[0:_MAX_UUID_LENGTH]
     tokens = None
     register = {}
     stats = {}
@@ -344,48 +349,49 @@ def reparse_api(version=1):
 
 @routes.route("/query.api", methods=["GET", "POST"])
 @routes.route("/query.api/v<int:version>", methods=["GET", "POST"])
-def query_api(version=1):
+async def query_api(version=1):
     """ Respond to a query string """
 
     if not (1 <= version <= 1):
         return better_jsonify(valid=False, reason="Unsupported version")
 
     # String with query
-    q = request.values.get("q", "")
+    vals = await request.values
+    q = vals.get("q", "")
     # q param contains one or more |-separated strings
     mq = q.split("|")[0:_MAX_QUERY_VARIANTS]
     # Retain only nonempty strings in q
     q = list(filter(None, (m.strip()[0:_MAX_QUERY_LENGTH] for m in mq)))
 
     # If voice is set, return a voice-friendly string
-    voice = bool_from_request(request, "voice")
+    voice = vals.get("voice")
     # Request a particular voice
-    voice_id = request.values.get("voice_id")
+    voice_id = vals.get("voice_id")
     # Request a particular voice speed
     try:
-        voice_speed = float(request.values.get("voice_speed", 1.0))
+        voice_speed = float(vals.get("voice_speed", 1.0))
     except ValueError:
         voice_speed = 1.0
 
     # If test is set to True (which is only possible in a debug setting), we
     # (1) add a synthetic location, if not given; and
     # (2) bypass the cache
-    test = Settings.DEBUG and bool_from_request(request, "test")
+    test = Settings.DEBUG and vals.get("test")
 
     # Obtain the client's location, if present
-    lat = request.values.get("latitude")
-    lon = request.values.get("longitude")
+    lat = vals.get("latitude")
+    lon = vals.get("longitude")
 
     # Additional client info
-    client_id = request.values.get("client_id")
-    client_type = request.values.get("client_type")
-    client_version = request.values.get("client_version")
+    client_id = vals.get("client_id")
+    client_type = vals.get("client_type")
+    client_version = vals.get("client_version")
     # When running behind an nginx reverse proxy, the client's remote
     # address is passed to the web application via the "X-Real-IP" header
     client_ip = request.remote_addr or request.headers.get("X-Real-IP")
 
     # Query is marked as private and shouldn't be logged
-    private = bool_from_request(request, "private")
+    private = vals.get("private")
 
     # Attempt to convert the (lat, lon) location coordinates to floats
     location_present = bool(lat) and bool(lon)
@@ -412,7 +418,7 @@ def query_api(version=1):
             location_present = False
 
     # Auto-uppercasing can be turned off by sending autouppercase: false in the query JSON
-    auto_uppercase = bool_from_request(request, "autouppercase", True)
+    auto_uppercase = vals.get("autouppercase")
 
     # Send the query to the query processor
     result = process_query(
@@ -461,15 +467,17 @@ def query_api(version=1):
 
 @routes.route("/query_history.api", methods=["GET", "POST"])
 @routes.route("/query_history.api/v<int:version>", methods=["GET", "POST"])
-def query_history_api(version=1):
+async def query_history_api(version=1):
     """ Delete query history and/or query data for a particular unique client ID. """
 
     if not (1 <= version <= 1):
         return better_jsonify(valid=False, reason="Unsupported version")
 
+    vals = await request.values
+
     # Calling this endpoint requires the Greynir API key
     # TODO: Enable when clients (iOS, Android) have been updated
-    # key = request.values.get("api_key")
+    # key = vals.get("api_key")
     # gak = greynir_api_key()
     # if not gak or not key or key != gak:
     #     resp["errmsg"] = "Invalid or missing API key."
@@ -477,10 +485,10 @@ def query_history_api(version=1):
 
     resp = dict(valid=True)
 
-    action = request.values.get("action")
-    # client_type = request.values.get("client_type")
-    # client_version = request.values.get("client_version")
-    client_id = request.values.get("client_id")
+    action = vals.get("action")
+    # client_type = vals.get("client_type")
+    # client_version = vals.get("client_version")
+    client_id = vals.get("client_id")
 
     valid_actions = ("clear", "clear_all")
 
@@ -503,30 +511,31 @@ def query_history_api(version=1):
 
 @routes.route("/speech.api", methods=["GET", "POST"])
 @routes.route("/speech.api/v<int:version>", methods=["GET", "POST"])
-def speech_api(version=1):
+async def speech_api(version=1):
     """ Send in text, receive URL to speech-synthesised audio file. """
 
     if not (1 <= version <= 1):
         return better_jsonify(valid=False, reason="Unsupported version")
 
     reply = dict(err=True)
+    vals = await request.values
 
     # Calling this endpoint requires the Greynir API key
-    key = request.values.get("api_key")
+    key = vals.get("api_key")
     gak = greynir_api_key()
     if not gak or not key or key != gak:
         reply["errmsg"] = "Invalid or missing API key."
         return better_jsonify(**reply)
 
-    text = request.values.get("text")
+    text = vals.get("text")
     if not text:
         return better_jsonify(**reply)
 
-    fmt = request.values.get("format", "ssml")
+    fmt = vals.get("format", "ssml")
     if fmt not in ["text", "ssml"]:
         fmt = "ssml"
-    voice_id = request.values.get("voice_id", "Dora")
-    speed = request.values.get("speed", 1.0)
+    voice_id = vals.get("voice_id", "Dora")
+    speed = vals.get("speed", 1.0)
     if not isinstance(speed, float):
         try:
             speed = float(speed)
@@ -550,16 +559,17 @@ def speech_api(version=1):
 
 @routes.route("/feedback.api", methods=["POST"])
 @routes.route("/feedback.api/v<int:version>", methods=["POST"])
-def feedback_api(version=1):
+async def feedback_api(version=1):
     """ Endpoint to accept submitted feedback forms """
 
     if not (1 <= version <= 1):
         return better_jsonify(valid=False, reason="Unsupported version")
 
-    name = request.values.get("name")
-    email = request.values.get("email")
-    comment = request.values.get("comment")
-    topic = request.values.get("topic")
+    vals = await request.values
+    name = vals.get("name")
+    email = vals.get("email")
+    comment = vals.get("comment")
+    topic = vals.get("topic")
 
     if comment:
         with SessionContext(commit=True) as session:
@@ -580,7 +590,7 @@ def feedback_api(version=1):
 
 
 @routes.route("/exit.api", methods=["GET"])
-def exit_api():
+async def exit_api():
     """ Allow a server to be remotely terminated if running in debug mode """
     if not Settings.DEBUG:
         abort(404)
@@ -593,7 +603,7 @@ def exit_api():
 
 @routes.route("/register_query_data.api", methods=["POST"])
 @routes.route("/register_query_data.api/v<int:version>", methods=["POST"])
-def register_query_data_api(version=1):
+async def register_query_data_api(version=1):
     """
     Stores or updates query data for the given client ID
 
@@ -618,7 +628,7 @@ def register_query_data_api(version=1):
     if not (1 <= version <= 1):
         return better_jsonify(valid=False, reason="Unsupported version")
 
-    qdata = request.json
+    qdata = await request.get_json()
     if qdata is None:
         return better_jsonify(valid=False, errmsg="Empty request.")
 

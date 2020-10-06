@@ -25,10 +25,10 @@ from typing import List, Union, Tuple, Dict, Any
 
 import logging
 
-from . import routes, better_jsonify, cache
+from . import routes, better_jsonify # , cache
 
 from datetime import datetime, timedelta
-from flask import request, render_template
+from quart import request, render_template
 
 from settings import changedlocale
 
@@ -43,15 +43,15 @@ from db.queries import WordFrequencyQuery
 
 
 @routes.route("/words")
-def words():
+async def words():
     """ Handler for word frequency page. """
-    return render_template("words/freq.html", title="Orð")
+    return await render_template("words/freq.html", title="Orð")
 
 
 @routes.route("/words_trends")
-def words_trends():
+async def words_trends():
     """ Handler for word trends page. """
-    return render_template("words/trends.html", title="Orð")
+    return await render_template("words/trends.html", title="Orð")
 
 
 # Word categories permitted in word frequency search
@@ -128,8 +128,8 @@ def _desc4word(wc):
 
 
 @routes.route("/wordfreq", methods=["GET", "POST"])
-@cache.cached(timeout=60 * 60 * 4, key_prefix="wordfreq", query_string=True)
-def wordfreq():
+# @cache.cached(timeout=60 * 60 * 4, key_prefix="wordfreq", query_string=True)
+async def wordfreq():
     """ Return word frequency chart data for a given time period. """
     resp: Dict[str, Any] = dict(err=True)
     # Create datetime objects from query string args
@@ -271,7 +271,7 @@ def wordfreq():
 
 
 @routes.route("/wordfreq_details", methods=["GET", "POST"])
-def wordfreq_details():
+async def wordfreq_details():
     """ Return list of articles containing certain words over a given period. """
     resp = dict(err=True)  # type: Dict[str, Any]
 
@@ -326,5 +326,5 @@ def wordfreq_details():
             )
 
     resp["err"] = False
-    resp["payload"] = render_template("words/details.html", words=wlist)
+    resp["payload"] = await render_template("words/details.html", words=wlist)
     return better_jsonify(**resp)

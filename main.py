@@ -40,11 +40,11 @@ import re
 import logging
 from datetime import datetime
 
-from flask import Flask, send_from_directory, render_template
-from flask_caching import Cache  # type: ignore
-from flask_cors import CORS  # type: ignore
+from quart import Quart, send_from_directory, render_template
+#from flask_caching import Cache  # type: ignore
+#from flask_cors import CORS  # type: ignore
 
-from werkzeug.middleware.proxy_fix import ProxyFix
+#  from werkzeug.middleware.proxy_fix import ProxyFix
 
 import reynir
 from reynir.bindb import BIN_Db
@@ -64,14 +64,14 @@ from tokenizer import __version__ as tokenizer_version
 RUNNING_AS_SERVER = __name__ != "__main__"
 
 # Initialize and configure Flask app
-app = Flask(__name__)
+app = Quart(__name__)
 
 # Enable Cross Origin Resource Sharing for app
-cors = CORS(app)
-app.config["CORS_HEADERS"] = "Content-Type"
+# cors = CORS(app)
+# app.config["CORS_HEADERS"] = "Content-Type"
 
 # Fix access to client remote_addr when running behind proxy
-setattr(app, "wsgi_app", ProxyFix(app.wsgi_app))
+#  setattr(app, "wsgi_app", ProxyFix(app.wsgi_app))
 
 app.config["JSON_AS_ASCII"] = False  # We're fine with using Unicode/UTF-8
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024  # 1 MB, max upload file size
@@ -86,9 +86,9 @@ app.app_context().push()
 
 # Set up caching
 # Caching is disabled if app is invoked via the command line
-cache_type = "simple" if RUNNING_AS_SERVER else "null"
-cache = Cache(app, config={"CACHE_TYPE": cache_type})
-app.config["CACHE"] = cache
+# cache_type = "simple" if RUNNING_AS_SERVER else "null"
+# cache = Cache(app, config={"CACHE_TYPE": cache_type})
+# app.config["CACHE"] = cache
 
 # Register blueprint routes
 from routes import routes, max_age
@@ -155,23 +155,23 @@ def hashed_url_for_static_file(endpoint, values):
 
 
 @app.route("/static/fonts/<path:path>")
-@max_age(seconds=24 * 60 * 60)  # Client should cache font for 24 hours
-def send_font(path):
-    return send_from_directory(os.path.join("static", "fonts"), path)
+# @max_age(seconds=24 * 60 * 60)  # Client should cache font for 24 hours
+async def send_font(path):
+    return await send_from_directory(os.path.join("static", "fonts"), path)
 
 
 # Custom 404 error handler
 @app.errorhandler(404)
-def page_not_found(e):
+async def page_not_found(e):
     """ Return a custom 404 error """
-    return render_template("404.html")
+    return await render_template("404.html")
 
 
 # Custom 500 error handler
 @app.errorhandler(500)
-def server_error(e):
+async def server_error(e):
     """ Return a custom 500 error """
-    return render_template("500.html")
+    return await render_template("500.html")
 
 
 @app.context_processor

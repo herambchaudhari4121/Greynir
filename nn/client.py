@@ -29,7 +29,7 @@ from typing import Optional, Dict, Any, List, Union
 
 import json
 
-from flask import abort
+from quart import abort
 import requests
 
 from settings import Settings
@@ -81,7 +81,8 @@ class ApiClient:
             whether the input was valid and the second is the (possibly)
             modified data.
         """
-        data = json.loads(request.data)
+        d = await request.data
+        data = json.loads(d)
         required_diff = set(self.required_fields).difference(data.keys())
         if required_diff:
             return (False, "{} are required fields.".format(", ".join(required_diff)))

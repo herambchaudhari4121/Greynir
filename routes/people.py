@@ -23,15 +23,13 @@
 
 from typing import Dict, Tuple, cast, Counter as CounterType
 
-from . import routes, max_age, cache, restricted, days_from_period_arg
+from . import routes, max_age, restricted, days_from_period_arg # , cache
 
-import json
-from pprint import pprint
 from datetime import datetime, timedelta
 from collections import defaultdict, Counter
 from itertools import permutations
 
-from flask import request, render_template
+from quart import request, render_template
 
 from settings import changedlocale
 
@@ -210,41 +208,42 @@ def graph_data(num_persons=_DEFAULT_NUM_PERSONS_GRAPH):
 
 
 @routes.route("/people_recent")
-@cache.cached(timeout=10 * 60, key_prefix="people", query_string=True)
-@max_age(seconds=10 * 60)
-def people_recent():
+# @cache.cached(timeout=10 * 60, key_prefix="people", query_string=True)
+# @max_age(seconds=10 * 60)
+async def people_recent():
     """ Page with a list of people recently appearing in articles """
-    return render_template(
+    return await render_template(
         "people/recent.html", title="Fólk - Nýlegt", persons=recent_persons()
     )
 
 
 @routes.route("/people")
-@cache.cached(timeout=30 * 60, key_prefix="people_top", query_string=True)
-@max_age(seconds=10 * 60)
-def people_top():
+# @cache.cached(timeout=30 * 60, key_prefix="people_top", query_string=True)
+# @max_age(seconds=10 * 60)
+async def people_top():
     """ Page showing people most frequently mentioned in recent articles """
-    period = request.args.get("period")
+    vals = await request.values
+    period = vals.get("period")
     days = days_from_period_arg(period, _TOP_PERSONS_PERIOD)
     persons = top_persons(days=days)
 
-    return render_template(
+    return await render_template(
         "people/top.html", title="Fólk", persons=persons, period=period
     )
 
 
 @routes.route("/people_graph")
 @restricted
-@max_age(seconds=10 * 60)
-def people_graph():
-    """ Page with a weighted, force directed graph of relations 
+# @max_age(seconds=10 * 60)
+async def people_graph():
+    """ Page with a weighted, force directed graph of relations
         between people via mentions in articles. """
-    return render_template("people/graph.html", graph_data=graph_data())
+    return await render_template("people/graph.html", graph_data=graph_data())
 
 
 @routes.route("/people_timeline")
 @restricted
 @max_age(seconds=10 * 60)
-def people_timeline():
+async def people_timeline():
     """ Person timeline page. """
-    return render_template("people/timeline.html")
+    return await render_template("people/timeline.html")

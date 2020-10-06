@@ -23,13 +23,13 @@
 
 from typing import Dict, List
 
-from . import routes, max_age, cache
+from . import routes, max_age # , cache
 
 import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from flask import request, render_template
+from quart import request, render_template
 
 from settings import changedlocale
 from db import SessionContext
@@ -152,9 +152,9 @@ def top_authors(days=_TOP_AUTHORS_PERIOD, session=None):
 
 
 @routes.route("/stats", methods=["GET"])
-@cache.cached(timeout=30 * 60, key_prefix="stats", query_string=True)
-@max_age(seconds=30 * 60)
-def stats():
+# @cache.cached(timeout=30 * 60, key_prefix="stats", query_string=True)
+# @max_age(seconds=30 * 60)
+async def stats():
     """ Render a page containing various statistics from the Greynir database. """
     days = _DEFAULT_STATS_PERIOD
     try:
@@ -190,7 +190,7 @@ def stats():
         # Chart stats
         chart_data = chart_stats(session=session, num_days=days)
 
-    return render_template(
+    return await render_template(
         "stats.html",
         title="Tölfræði",
         result=result,

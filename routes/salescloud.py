@@ -163,7 +163,7 @@ def handle_request(request):
 
 
 @routes.route("/salescloud/nyskraning", methods=["POST"])
-def sales_create():
+async def sales_create():
     """ Webhook handler for SalesCloud """
     j, status = handle_request(request)
     if status != 200:
@@ -188,7 +188,7 @@ def sales_create():
 
 
 @routes.route("/salescloud/breyting", methods=["POST"])
-def sales_modify():
+async def sales_modify():
     """ Webhook handler for SalesCloud """
     j, status = handle_request(request)
     if status != 200:

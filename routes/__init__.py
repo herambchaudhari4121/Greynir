@@ -33,7 +33,7 @@ import json
 from functools import wraps
 from datetime import datetime, timedelta
 
-from flask import (
+from quart import (
     Blueprint,
     jsonify,
     make_response,
@@ -57,7 +57,7 @@ _MAX_UUID_LENGTH = 36
 
 _TRUTHY = frozenset(("true", "1", "yes"))
 
-cache = current_app.config["CACHE"]
+# cache = current_app.config["CACHE"]
 routes = Blueprint("routes", __name__)
 
 
@@ -71,7 +71,7 @@ def max_age(seconds):
             resp = f(*args, **kwargs)
             if not isinstance(resp, Response):
                 resp = make_response(resp)
-            resp.cache_control.max_age = seconds
+            #  resp.cache_control.max_age = seconds
             return resp
 
         return decorated_function
@@ -334,7 +334,7 @@ def async_task(f):
 
 
 @routes.route("/status/<task>", methods=["GET"])
-def get_status(task):
+async def get_status(task):
     """ Return the status of an asynchronous task. If this request returns a
         202 ACCEPTED status code, it means that task hasn't finished yet.
         Else, the response from the task is returned (normally with a

@@ -25,7 +25,7 @@
 from . import routes, max_age, better_jsonify
 
 from datetime import datetime, timedelta
-from flask import request, render_template
+from quart import request, render_template
 
 from settings import changedlocale
 
@@ -162,8 +162,8 @@ def fetch_articles(
 
 
 @routes.route("/news")
-@max_age(seconds=60)
-def news():
+# @max_age(seconds=60)
+async def news():
     """ Handler for a page with a list of articles + pagination """
     topic = request.args.get("topic")
     root = request.args.get("root")
@@ -172,7 +172,7 @@ def news():
     try:
         offset = max(0, int(request.args.get("offset", 0)))
         limit = max(0, int(request.args.get("limit", _DEFAULT_NUM_ARTICLES)))
-    except:
+    except Exception:
         offset = 0
         limit = _DEFAULT_NUM_ARTICLES
 
@@ -208,7 +208,7 @@ def news():
         )
         roots = dict(q.all())
 
-    return render_template(
+    return await render_template(
         "news.html",
         title="Fréttir",
         articles=articles,
@@ -225,7 +225,7 @@ ARTICLES_LIST_MAXITEMS = 50
 
 
 @routes.route("/articles", methods=["GET"])
-def articles_list():
+async def articles_list():
     """ Returns rendered HTML article list as a JSON payload """
     locname = request.args.get("locname")
     country = request.args.get("country")
@@ -244,7 +244,7 @@ def articles_list():
 
     # Render template
     count = len(articles)
-    html = render_template("articles.html", articles=articles)
+    html = await render_template("articles.html", articles=articles)
 
     # Return payload
     return better_jsonify(payload=html, count=count)

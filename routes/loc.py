@@ -23,13 +23,13 @@
 
 from typing import Dict, Any
 
-from . import routes, max_age, better_jsonify, cache, days_from_period_arg
+from . import routes, max_age, better_jsonify, days_from_period_arg # , cache
 
 from datetime import datetime, timedelta
 from collections import defaultdict
 import json
 
-from flask import request, render_template, abort, send_file
+from quart import request, render_template, abort, send_file
 from country_list import countries_for_language
 
 from db import SessionContext, dbfunc, desc
@@ -166,31 +166,32 @@ def world_map_data(days=_TOP_LOC_PERIOD):
 
 
 @routes.route("/locations", methods=["GET"])
-@cache.cached(timeout=30 * 60, key_prefix="locations", query_string=True)
-@max_age(seconds=30 * 60)
-def locations():
+#@cache.cached(timeout=30 * 60, key_prefix="locations", query_string=True)
+#@max_age(seconds=30 * 60)
+async def locations():
     """ Render locations page. """
-    kind = request.args.get("kind")
+    vals = await request.values
+    kind = vals.get("kind")
     kind = kind if kind in LOCATION_TAXONOMY else None
 
-    period = request.args.get("period")
+    period = vals.get("period")
     days = days_from_period_arg(period, _TOP_LOC_PERIOD)
     locs = top_locations(kind=kind, days=days)
 
-    return render_template(
+    return await render_template(
         "locations/top.html", title="Staðir", locations=locs, period=period, kind=kind
     )
 
 
 @routes.route("/locations_icemap", methods=["GET"])
-@cache.cached(timeout=30 * 60, key_prefix="icemap", query_string=True)
-def locations_icemap():
+#@cache.cached(timeout=30 * 60, key_prefix="icemap", query_string=True)
+async def locations_icemap():
     """ Render Icelandic map locations page. """
     period = request.args.get("period")
     days = days_from_period_arg(period, _TOP_LOC_PERIOD)
     markers = icemap_markers(days=days)
 
-    return render_template(
+    return await render_template(
         "locations/icemap.html",
         title="Íslandskort",
         markers=json.dumps(markers),
@@ -199,8 +200,8 @@ def locations_icemap():
 
 
 @routes.route("/locations_worldmap", methods=["GET"])
-@cache.cached(timeout=30 * 60, key_prefix="worldmap", query_string=True)
-def locations_worldmap():
+#@cache.cached(timeout=30 * 60, key_prefix="worldmap", query_string=True)
+async def locations_worldmap():
     """ Render world map locations page. """
     period = request.args.get("period")
     days = days_from_period_arg(period, _TOP_LOC_PERIOD)
@@ -208,7 +209,7 @@ def locations_worldmap():
     d = world_map_data(days=days)
     n = dict(countries_for_language("is"))
 
-    return render_template(
+    return await render_template(
         "locations/worldmap.html",
         title="Heimskort",
         country_data=d,
@@ -218,14 +219,14 @@ def locations_worldmap():
 
 
 @routes.route("/staticmap", methods=["GET"])
-@cache.cached(timeout=60 * 60 * 24, key_prefix="staticmap", query_string=True)
-def staticmap():
+#@cache.cached(timeout=60 * 60 * 24, key_prefix="staticmap", query_string=True)
+async def staticmap():
     """ Proxy for Google Static Maps API. """
     try:
         lat = float(request.args.get("lat", "0.0"))
         lon = float(request.args.get("lon", "0.0"))
         zoom = int(request.args.get("z", "7"))
-    except:
+    except Exception:
         return abort(400)
 
     imgdata = get_staticmap_image(lat, lon, zoom=zoom)
@@ -241,8 +242,8 @@ ZOOM_FOR_LOC_KIND = {"street": 11, "address": 12, "placename": 5, "country": 2}
 
 
 @routes.route("/locinfo", methods=["GET"])
-@cache.cached(timeout=60 * 60 * 24, key_prefix="locinfo", query_string=True)
-def locinfo():
+# @cache.cached(timeout=60 * 60 * 24, key_prefix="locinfo", query_string=True)
+async def locinfo():
     """ Return info about a location as JSON. """
     resp = dict(found=False)  # type: Dict[str, Any]
 

@@ -29,7 +29,7 @@ import random
 import json
 from datetime import datetime
 
-from flask import render_template, request, redirect, url_for
+from quart import render_template, request, redirect, url_for
 
 import tokenizer
 import reynir
@@ -45,7 +45,7 @@ from treeutil import TreeUtility
 from images import get_image_url, update_broken_image_url, blacklist_image_url
 from doc import SUPPORTED_DOC_MIMETYPES
 
-from . import routes, max_age, cache, text_from_request, better_jsonify, restricted
+from . import routes, max_age, text_from_request, better_jsonify, restricted  # , cache
 from . import _MAX_URL_LENGTH, _MAX_UUID_LENGTH, _MAX_TEXT_LENGTH_VIA_URL
 
 
@@ -76,8 +76,8 @@ PARSEFAIL_MAX = 250
 
 
 @routes.route("/")
-@max_age(seconds=60)
-def main():
+# @max_age(seconds=60)
+async def main():
     """ Handler for the main (index) page """
     txt = request.args.get("txt")
     if txt:
@@ -85,26 +85,26 @@ def main():
     if not txt:
         # Select a random default text
         txt = _DEFAULT_TEXTS[random.randint(0, len(_DEFAULT_TEXTS) - 1)]
-    return render_template("main.html", default_text=txt)
+    return await render_template("main.html", default_text=txt)
 
 
 @routes.route("/analysis")
-def analysis():
+async def analysis():
     """ Handler for a page with grammatical analysis of user-entered text """
     txt = request.args.get("txt", "")[0:_MAX_TEXT_LENGTH_VIA_URL]
-    return render_template("analysis.html", title="Málgreining", default_text=txt)
+    return await render_template("analysis.html", title="Málgreining", default_text=txt)
 
 
 @routes.route("/correct", methods=["GET", "POST"])
 @restricted
-def correct():
+async def correct():
     """ Handler for a page for spelling and grammar correction
         of user-entered text """
     try:
         txt = text_from_request(request, post_field="txt", get_field="txt")
     except Exception:
         txt = ""
-    return render_template(
+    return await render_template(
         "correct.html",
         title="Yfirlestur",
         default_text=txt,
@@ -116,13 +116,14 @@ MAX_SIM_ARTICLES = 10  # Display at most 10 similarity matches
 
 
 @routes.route("/similar", methods=["GET", "POST"])
-def similar():
+async def similar():
     """ Return rendered HTML list of articles similar to a given article, given a UUID """
     resp: Dict[str, Any] = dict(err=True)
 
     # Parse query args
     try:
-        uuid = request.values.get("id")
+        vals = await request.values
+        uuid = vals.get("id")
         uuid = uuid.strip()[0:_MAX_UUID_LENGTH]
     except Exception:
         uuid = None
@@ -134,14 +135,14 @@ def similar():
     with SessionContext(commit=True) as session:
         similar = Search.list_similar_to_article(session, uuid, n=MAX_SIM_ARTICLES)
 
-    resp["payload"] = render_template("similar.html", similar=similar)
+    resp["payload"] = await render_template("similar.html", similar=similar)
     resp["err"] = False
 
     return better_jsonify(**resp)
 
 
 @routes.route("/page")
-def page():
+async def page():
     """ Handler for a page displaying the parse of an arbitrary web
         page by URL or an already scraped article by UUID """
     url = request.args.get("url")
@@ -181,13 +182,13 @@ def page():
         )
         topics = [dict(name=t.topic.name, id=t.topic.identifier) for t in topics]
 
-        return render_template(
+        return await render_template(
             "page.html", title=a.heading, article=a, register=register, topics=topics
         )
 
 
 @routes.route("/treegrid", methods=["GET"])
-def tree_grid():
+async def tree_grid():
     """ Show a simplified parse tree for a single sentence """
 
     txt = request.args.get("txt", "")
@@ -280,7 +281,7 @@ def tree_grid():
         if full_width and full_height:
             _normalize_tbl(full_tbl, full_width)
 
-    return render_template(
+    return await render_template(
         "treegrid.html",
         title="Tré",
         txt=txt,
@@ -294,7 +295,7 @@ def tree_grid():
 
 
 @routes.route("/parsefail")
-def parsefail():
+async def parsefail():
     """ Handler for a page showing recent sentences where parsing failed """
 
     num = request.args.get("num", PARSEFAIL_DEFAULT)
@@ -336,35 +337,35 @@ def parsefail():
                                 sfails.append([s])
                                 break
 
-    return render_template(
+    return await render_template(
         "parsefail.html", title="Ógreindar setningar", sentences=sfails, num=num
     )
 
 
 @routes.route("/apidoc")
-@max_age(seconds=10 * 60)
-def apidoc():
+# @max_age(seconds=10 * 60)
+async def apidoc():
     """ Handler for an API documentation page """
-    return render_template("apidoc.html", title="Forritaskil (API)")
+    return await render_template("apidoc.html", title="Forritaskil (API)")
 
 
 @routes.route("/buy")
-@max_age(seconds=10 * 60)
-def buy():
+# @max_age(seconds=10 * 60)
+async def buy():
     """ Handler for a subscription purchase page """
-    return render_template("buy.html", title="Afnot")
+    return await render_template("buy.html", title="Afnot")
 
 
 @routes.route("/terms")
-@max_age(seconds=10 * 60)
-def terms():
+# @max_age(seconds=10 * 60)
+async def terms():
     """ Handler for terms & conditions page """
-    return render_template("terms.html", title="Skilmálar")
+    return await render_template("terms.html", title="Skilmálar")
 
 
 @routes.route("/about")
-@max_age(seconds=10 * 60)
-def about():
+# @max_age(seconds=10 * 60)
+async def about():
     """ Handler for the 'About' page """
     try:
         parser_version = reynir.__version__
@@ -379,7 +380,7 @@ def about():
         tokenizer_version = ""
         python_version = ""
         platform_name = ""
-    return render_template(
+    return await render_template(
         "about.html",
         title="Um Greyni",
         parser_version=parser_version,
@@ -390,13 +391,15 @@ def about():
 
 
 @routes.route("/reportimage", methods=["POST"])
-def reportimage():
+async def reportimage():
     """ Notification that a (person) image is wrong or broken """
     resp = dict(found_new=False)
 
-    name = request.form.get("name")
-    url = request.form.get("url")
-    status = request.form.get("status")
+    vals = await request.form
+
+    name = vals.get("name")
+    url = vals.get("url")
+    status = vals.get("status")
 
     if name and url and status:
         if status == "broken":
@@ -411,7 +414,7 @@ def reportimage():
 
 
 @routes.route("/image", methods=["GET"])
-def image():
+async def image():
     """ Get image for (person) name """
     resp = dict(found=False)
 
@@ -431,8 +434,8 @@ def image():
 
 
 @routes.route("/suggest", methods=["GET"])
-@cache.cached(timeout=30 * 60, key_prefix="suggest", query_string=True)
-def suggest(limit=10):
+#@cache.cached(timeout=30 * 60, key_prefix="suggest", query_string=True)
+async def suggest(limit=10):
     """ Return suggestions for query field autocompletion """
     limit = request.args.get("limit", limit)
     txt = request.args.get("q", "").strip()
@@ -484,7 +487,7 @@ def suggest(limit=10):
 
 @routes.route("/translate")
 @restricted
-def translate():
+async def translate():
     """ Handler for a page with machine translation of user-entered text """
     txt = request.args.get("txt", "")[0:_MAX_TEXT_LENGTH_VIA_URL]
-    return render_template("translate.html", title="Vélþýðing", default_text=txt)
+    return await render_template("translate.html", title="Vélþýðing", default_text=txt)
