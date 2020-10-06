@@ -22,7 +22,8 @@
 """
 
 from collections import OrderedDict
-import os, sys
+import os
+import sys
 
 # Shenanigans to enable Pytest to discover modules in the
 # main workspace directory (the parent of /tests)
@@ -91,20 +92,20 @@ def test_entities():
        Villeneuve-Loubet er franskt þorp.
 
        Það er hægt að fá bragðgóðan ís í ísbúðinni Valdísi úti á Granda.
-       
+
        Í miðbæ Reykjavíkur er herrafataverslunin Geysir.
 
        Mér er sagt að Geysir sé hættur að gjósa.
-       
+
        Geysir er hættur að gjósa.
-       
+
        Geysir er gamall goshver.
-       
+
        Fyrirtækið Apple-búðin selur Apple Mac tölvur.
        Fyrirtækið Origo selur IBM tölvur.
-       
+
        Íslendingar stofnuðu skipafélagið Eimskipafélag Íslands.
-       
+
     """
     toklist = tokenize(text)
     fp = Fast_Parser(verbose=False)

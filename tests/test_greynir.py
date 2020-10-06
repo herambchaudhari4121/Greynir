@@ -113,18 +113,20 @@ API_ROUTES = [
 ]
 
 
-def test_api(client):
+@pytest.mark.asyncio
+async def test_api(client):
     """ Call API routes and validate response. """
     # TODO: Route-specific validation of JSON responses
     for r in API_ROUTES:
         # BUG: As-is, this makes pretty little sense
         # since no data is posted to the APIs
-        resp = client.post(str(r))
+        resp = await client.post(str(r))
         assert resp.content_type.startswith(API_CONTENT_TYPE)
 
 
-def test_postag_api(client):
-    resp = client.get(r"/postag.api?t=Hér%20sé%20ást%20og%20friður")
+@pytest.mark.asyncio
+async def test_postag_api(client):
+    resp = await client.get(r"/postag.api?t=Hér%20sé%20ást%20og%20friður")
     assert resp.status_code == 200
     assert resp.content_type == "application/json; charset=utf-8"
     assert "result" in resp.json
@@ -132,8 +134,9 @@ def test_postag_api(client):
     assert len(resp.json["result"][0]) == 5
 
 
-def test_ifdtag_api(client):
-    resp = client.get(r"/ifdtag.api?t=Hér%20sé%20ást%20og%20friður")
+@pytest.mark.asyncio
+async def test_ifdtag_api(client):
+    resp = await client.get(r"/ifdtag.api?t=Hér%20sé%20ást%20og%20friður")
     assert resp.status_code == 200
     assert resp.content_type == "application/json; charset=utf-8"
     assert "valid" in resp.json
@@ -155,13 +158,14 @@ _KEY_RESTRICTED_ROUTES = frozenset(
 )
 
 
-def test_api_key_restriction(client):
+@pytest.mark.asyncio
+async def test_api_key_restriction(client):
     """ Make calls to routes that are API key restricted, make sure they complain if no
         API key is provided as a parameter and accept when correct API key is provided. """
 
     # Try routes without API key, expect complaint about missing API key
     for path in _KEY_RESTRICTED_ROUTES:
-        resp = client.post(path)
+        resp = await client.post(path)
         assert resp.status_code == 200
         assert resp.content_type == "application/json; charset=utf-8"
         assert isinstance(resp.json, dict)
@@ -172,14 +176,14 @@ def test_api_key_restriction(client):
     global DUMMY_API_KEY
     if IN_CI_TESTING_ENV:
         for path in _KEY_RESTRICTED_ROUTES:
-            resp = client.post(f"{path}?key={DUMMY_API_KEY}")
+            resp = await client.post(f"{path}?key={DUMMY_API_KEY}")
             assert resp.status_code == 200
             assert resp.content_type == "application/json; charset=utf-8"
             assert isinstance(resp.json, dict)
             assert "errmsg" not in resp.json.keys()
 
     # This route requires special handling since it receives JSON via POST
-    resp = client.post(
+    resp = await client.post(
         "/register_query_data.api",
         data=json.dumps(dict()),
         content_type="application/json",
@@ -189,7 +193,8 @@ def test_api_key_restriction(client):
     assert "errmsg" in resp.json and "missing API key" in resp.json["errmsg"]
 
 
-def test_query_history_api(client):
+@pytest.mark.asyncio
+async def test_query_history_api(client):
     """ Test query history and query data deletion API. """
 
     # We don't run these tests except during the CI testing process, for fear of
@@ -212,7 +217,7 @@ def test_query_history_api(client):
 
         qstr = urlencode({"action": "clear", "client_id": _TEST_CLIENT_ID})
 
-        _ = client.get("/query_history.api?" + qstr)
+        _ = await client.get("/query_history.api?" + qstr)
 
         post_numq = session.query(Query).count()
 
@@ -230,7 +235,7 @@ def test_query_history_api(client):
 
         qstr = urlencode({"action": "clear_all", "client_id": _TEST_CLIENT_ID})
 
-        _ = client.get("/query_history.api?" + qstr)
+        _ = await client.get("/query_history.api?" + qstr)
 
         post_numqdata_cnt = session.query(QueryData).count()
 
