@@ -12,8 +12,8 @@
 *Greynir* is a natural language processing engine that
 **extracts processable information from Icelandic text**, allows
 **natural language querying** of that information and facilitates
-**natural language understanding**. Greynir is the core of
-[*Embla*](https://embla.is), a voice-driven virtual assistant app
+**natural language understanding**. Greynir is the core of an
+[*Embla*](https://embla.is), a voice-driven by virtual assistant app
 for smartphones and tablets.
 
 Try Greynir (in Icelandic) at [https://greynir.is](https://greynir.is)
@@ -40,12 +40,12 @@ by Vilhjálmur Þorsteinsson, Hulda Óladóttir and Hrafn Loftsson *(Proceedings
 *A parse tree as displayed by Greynir. Nouns and noun phrases are blue, verbs and verb phrases are red,
 adjectives are green, prepositional and adverbial phrases are grey, etc.*
 
-Greynir is most effective for text that is objective and factual, i.e. has a relatively high
+Greynir is most effective for the text that is objective and factual, i.e. has a relatively high
 ratio of concrete concepts such as numbers, amounts, dates, person and entity names,
 etc.
 
 Greynir is innovative in its ability to parse and disambiguate text written in a
-**morphologically rich language**, i.e. Icelandic, which does not lend itself easily
+**morphologically rich language**, i.e. Icelandic, which doesn't lend itself easily
 to statistical parsing methods. Greynir uses grammatical feature agreement (cases, genders,
 persons, number (singular/plural), verb tenses, modes, etc.) to guide and disambiguate
 parses. Its highly optimized Earley-based parser, implemented in C++, is fast and compact
